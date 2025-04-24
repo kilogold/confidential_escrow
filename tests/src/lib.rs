@@ -1,39 +1,80 @@
 #[cfg(test)]
 mod tests {
-    use litesvm::LiteSVM;
-    use solana_keypair::Keypair;
-    use solana_message::Message;
-    use solana_pubkey::Pubkey;
-    use solana_signer::Signer;
-    use solana_system_interface::instruction::transfer;
-    use solana_transaction::Transaction;
+    use {
+        litesvm::LiteSVM,
+        solana_instruction::{account_meta::AccountMeta, Instruction},
+        solana_keypair::Keypair,
+        solana_message::{Message, VersionedMessage},
+        solana_pubkey::{pubkey, Pubkey},
+        solana_signer::Signer,
+        solana_system_interface::instruction::transfer,
+        solana_transaction::{versioned::VersionedTransaction, Transaction},
+    };
 
     #[test]
-    fn test_true_from_integration() {
-        let from_keypair = Keypair::new();
-        let from = from_keypair.pubkey();
-        let to = Pubkey::new_unique();
-
+    fn test_litesvm_integration() {
         let mut svm = LiteSVM::new();
-        svm.airdrop(&from, 10_000).unwrap();
 
-        let instruction = transfer(&from, &to, 64);
-        let tx = Transaction::new(
-            &[&from_keypair],
-            Message::new(&[instruction], Some(&from)),
-            svm.latest_blockhash(),
-        );
-        let _tx_res = svm.send_transaction(tx).unwrap();
+        {
+            let from_keypair = Keypair::new();
+            let from = from_keypair.pubkey();
+            let to = Pubkey::new_unique();
 
-        let from_account = svm.get_account(&from);
-        let to_account = svm.get_account(&to);
-        assert_eq!(from_account.unwrap().lamports, 4936);
-        assert_eq!(to_account.unwrap().lamports, 64);
+            svm.airdrop(&from, 10_000).unwrap();
+
+            let instruction = transfer(&from, &to, 64);
+            let tx = Transaction::new(
+                &[&from_keypair],
+                Message::new(&[instruction], Some(&from)),
+                svm.latest_blockhash(),
+            );
+            let _tx_res = svm.send_transaction(tx).unwrap();
+
+            let from_account = svm.get_account(&from);
+            let to_account = svm.get_account(&to);
+            assert_eq!(from_account.unwrap().lamports, 4936);
+            assert_eq!(to_account.unwrap().lamports, 64);
+        }
+        {
+            let program_id = pubkey!("Logging111111111111111111111111111111111111");
+            let account_meta = AccountMeta {
+                pubkey: Pubkey::new_unique(),
+                is_signer: false,
+                is_writable: true,
+            };
+            let ix = Instruction {
+                program_id,
+                accounts: vec![account_meta],
+                data: vec![5, 10, 11, 12, 13, 14],
+            };
+            let payer = Keypair::new();
+            let bytes = include_bytes!("../program_bin/spl_example_logging.so");
+            svm.add_program(program_id, bytes);
+            svm.airdrop(&payer.pubkey(), 1_000_000_000).unwrap();
+            let blockhash = svm.latest_blockhash();
+            let msg = Message::new_with_blockhash(&[ix], Some(&payer.pubkey()), &blockhash);
+            let tx =
+                VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[payer]).unwrap();
+            // let's sim it first
+            let sim_res = svm.simulate_transaction(tx.clone()).unwrap();
+            let meta = svm.send_transaction(tx).unwrap();
+            assert_eq!(sim_res.meta, meta);
+            assert_eq!(meta.logs[1], "Program log: static string");
+            assert!(meta.compute_units_consumed < 10_000); // not being precise here in case it changes
+        }
     }
 
     #[test]
-    fn test_false_failing_integration() {
-        // This test should fail
-        assert!(true, "This test is meant to fail");
+    fn test_initialize_escrow() {
+        let mut svm = LiteSVM::new();
+        svm.add_program_from_file(
+            pubkey!("8KeCuKyKT5CYeR834c9MDJZPbQ74DkqgJagdA13y58Fx"),
+            "../target/deploy/confidential_escrow.so",
+        ).unwrap();
+        let payer = Keypair::new();
+        svm.airdrop(&payer.pubkey(), 1_000_000_000).unwrap();
+
+        
+        
     }
 }

@@ -1078,6 +1078,7 @@ name = "escrow-tests"
 version = "0.1.0"
 dependencies = [
  "litesvm",
+ "solana-instruction",
  "solana-keypair",
  "solana-message",
  "solana-pubkey",
