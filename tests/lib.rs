@@ -7,6 +7,8 @@ use {
     solana_signer::Signer,
     solana_system_interface::instruction::transfer,
     solana_transaction::{versioned::VersionedTransaction, Transaction},
+    confidential_escrow_native::instruction,
+    borsh::BorshSerialize,
 };
 
 #[test]
@@ -58,47 +60,53 @@ fn test_litesvm_integration() {
         assert_eq!(sim_res.meta, meta);
         assert_eq!(meta.logs[1], "Program log: static string");
         assert!(meta.compute_units_consumed < 10_000); // not being precise here in case it changes
-        println!("{}", meta.pretty_logs());
+
     }
 }
 
 #[test]
 fn test_hello_world() {
     let mut svm = LiteSVM::new();
-
-    // Define the program ID
     let program_id = Pubkey::new_unique();
-    
-    // Create a payer account
+    let test_account = Keypair::new();
     let payer = Keypair::new();
-    
+
     // Load and add the program to the SVM
     let bytes = include_bytes!("../target/deploy/confidential_escrow_native.so");
     svm.add_program(program_id, bytes);
-    
+
     // Fund the payer account
     svm.airdrop(&payer.pubkey(), 1_000_000_000).unwrap();
-    
-    // Create a simple instruction (no accounts needed for this basic program)
-    let ix = Instruction {
-        program_id,
-        accounts: vec![],
-        data: vec![],
+
+    // Create instruction data with discriminator and payload
+    let payload = instruction::InstructionPayload {
+        data: "test data".to_string(),
     };
-    
+    let mut instruction_data = vec![0u8]; // 0 is the discriminator for ProcessData
+    payload.serialize(&mut instruction_data).unwrap();
+
+    // Create the instruction
+    let instruction = Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(test_account.pubkey(), false),
+            AccountMeta::new(payer.pubkey(), true),
+        ],
+        data: instruction_data,
+    };
+
     // Create and send the transaction
     let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[ix], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[payer]).unwrap();
-    
+    let msg = Message::new_with_blockhash(&[instruction], Some(&payer.pubkey()), &blockhash);
+    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
+
     // Simulate first
     let sim_res = svm.simulate_transaction(tx.clone()).unwrap();
     let meta = svm.send_transaction(tx).unwrap();
-    
+
     // Verify the simulation matches the actual execution
     assert_eq!(sim_res.meta, meta);
-    
-    // Check that the program logged "Hello, world!"
-    assert_eq!(meta.logs[1], "Program log: Hello, world!");
+    assert!(meta.logs.iter().any(|log| log.contains("test data")));
+    println!("The output: {}", meta.pretty_logs());
 }
 
