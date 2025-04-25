@@ -2,27 +2,43 @@
 #![allow(unexpected_cfgs)]
 
 use solana_program::{
-    account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, pubkey::Pubkey,
+    account_info::AccountInfo,
+    entrypoint,
+    entrypoint::ProgramResult,
+    msg,
+    pubkey::Pubkey,
 };
 
 // Import our instruction and processor modules
 pub mod instruction;
 pub mod processor;
+pub mod state; // Assuming state definitions might be needed later
+pub mod error; // Assuming custom errors might be needed
+
 use instruction::ProgramInstruction;
-use processor::*;
+use processor::Processor;
 
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    instruction_data: &[u8],
+    program_id: &Pubkey,      // Program ID of this program
+    accounts: &[AccountInfo], // Accounts passed into the instruction
+    instruction_data: &[u8],  // Instruction data
 ) -> ProgramResult {
+    msg!("Entrypoint");
     // Unpack the instruction data into our ProgramInstruction enum
     let instruction = ProgramInstruction::unpack(instruction_data)?;
 
-    // Match on the instruction variant to handle each case
+    // Call the processor based on the instruction variant
     match instruction {
-        ProgramInstruction::ProcessData { data } => process_process_data(data),
+        ProgramInstruction::InitializeEscrow => {
+            msg!("Instruction: InitializeEscrow");
+            Processor::process_initialize_escrow(program_id, accounts)
+        }
+        ProgramInstruction::ProcessData { data } => {
+             msg!("Instruction: ProcessData");
+             // Assuming process_process_data is now part of the Processor struct
+             Processor::process_process_data(data)
+        }
     }
 }

@@ -109,4 +109,3 @@ fn test_hello_world() {
     assert!(meta.logs.iter().any(|log| log.contains("test data")));
     println!("The output: {}", meta.pretty_logs());
 }
-
