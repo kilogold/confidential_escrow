@@ -577,6 +577,8 @@ version = "0.1.0"
 dependencies = [
  "borsh 1.5.7",
  "litesvm",
+ "litesvm-token",
+ "serde_json",
  "solana-instruction",
  "solana-keypair",
  "solana-message",
@@ -1577,6 +1579,25 @@ dependencies = [
  "solana-transaction-error",
  "solana-vote-program",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "litesvm-token"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e86e6be8c00c17755cbcdef6e35f18051725239e0e6eba61a021d84378693df"
+dependencies = [
+ "litesvm",
+ "smallvec",
+ "solana-keypair",
+ "solana-program-pack",
+ "solana-pubkey",
+ "solana-signer",
+ "solana-system-interface",
+ "solana-transaction",
+ "solana-transaction-error",
+ "spl-associated-token-account-client",
+ "spl-token 7.0.0",
 ]
 
 [[package]]
@@ -4112,6 +4133,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "spl-associated-token-account-client"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6f8349dbcbe575f354f9a533a21f272f3eb3808a49e2fdc1c34393b88ba76cb"
+dependencies = [
+ "solana-instruction",
+ "solana-pubkey",
+]
+
+[[package]]
 name = "spl-discriminator"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4255,6 +4286,21 @@ dependencies = [
 
 [[package]]
 name = "spl-token"
+version = "7.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed320a6c934128d4f7e54fe00e16b8aeaecf215799d060ae14f93378da6dc834"
+dependencies = [
+ "arrayref",
+ "bytemuck",
+ "num-derive",
+ "num-traits",
+ "num_enum",
+ "solana-program",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "spl-token"
 version = "8.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "053067c6a82c705004f91dae058b11b4780407e9ccd6799dc9e7d0fab5f242da"
@@ -4314,7 +4360,7 @@ dependencies = [
  "spl-elgamal-registry",
  "spl-memo",
  "spl-pod",
- "spl-token",
+ "spl-token 8.0.0",
  "spl-token-confidential-transfer-ciphertext-arithmetic",
  "spl-token-confidential-transfer-proof-extraction",
  "spl-token-confidential-transfer-proof-generation",
