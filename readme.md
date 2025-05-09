@@ -94,34 +94,50 @@ invoke_signed(
 sequenceDiagram
     actor Alice
     actor Bob
-    participant AliceATA as Alice's $AUSD ATA
+    %%participant AliceATA as Alice's $AUSD ATA
+    participant Actions as Actions Endpoint
     participant BobATA as Bob's $AUSD ATA
-    participant AliceUSLC as Alice's $USDC ATA
     participant BobUSLC as Bob's $USDC ATA
+    participant AliceUSLC as Alice's $USDC ATA
+    participant SystemProgram
     participant EscrowProgram as Escrow Program
-    participant EscrowPDA as Escrow PDA
+    participant EscrowPDA as Escrow $AUSD ATA PDA
 
-    %% Initialization Phase
-    Alice->>EscrowProgram: Initialize Escrow
-    EscrowProgram->>EscrowPDA: Create PDA Account
-    EscrowProgram->>EscrowPDA: Configure Confidential Extension with Public Key
-    Alice->>AliceATA: Transfer $AUSD
-    AliceATA->>EscrowPDA: Deposit Confidential Funds
-    Alice-->>Bob: Share ElGamal Keypair & AES Key (off-chain)
+    Note over Alice,EscrowPDA: Initialization Phase
+    Alice->>+EscrowProgram: Ixn: Init(Conf ATA Init Ixn) 
+    EscrowProgram->>EscrowPDA: Creates
+    EscrowProgram->>-EscrowPDA: Configure Confidential Extension with <br>Init ixn argument
+
+    Note over Alice,EscrowPDA: Funding Phase
+    Alice->>EscrowPDA: Confidential Balances: Confidential Transfer $AUSD
+    Alice->>EscrowPDA: Confidential Balances: Apply
     
-    %% Verification Phase
+    Note over Alice,EscrowPDA: Verification Phase
+    alt When sharing encrpytion keys
+    Alice->>Bob: Share ElGamal Keypair & AES Key (off-chain)
     Bob->>EscrowPDA: Query Escrow State
     Bob->>Bob: Decrypt & Verify Amount (using Alice's AES key)
+    Bob->>Bob: Generate Conf Transfer Ixn
     
-    %% Execution Phase
-    Bob->>EscrowProgram: Execute Trade
-    Bob->>BobUSLC: Authorize $USDC Transfer
-    BobUSLC->>AliceUSLC: Transfer $USDC
-    
-    %% Completion Phase
-    EscrowProgram->>EscrowPDA: Generate Proof (using Alice's ElGamal keypair)
-    EscrowPDA->>BobATA: Transfer Confidential $AUSD
-    EscrowProgram->>EscrowPDA: Close Escrow Account
+    else When using Actions (no key sharing)
+    Bob->>Actions: Authenticate
+    Bob->>Actions: Verify decrypted amount
+    Bob->>Actions: Request escrow swap transaction
+    Actions-->>Bob: Escrow swap txn w/ Conf Transfer Ixn
+
+
+    end
+
+    Note over Alice,EscrowPDA: Atomic Escrow Swap Phase
+    Bob->>+EscrowProgram: Ixn: Trade(Conf Transfer Ixn)
+    EscrowProgram->>+EscrowProgram: CPI: Public Transfer (via T22)
+
+    EscrowProgram->>BobUSLC: Debit $USDC (via T22)
+    EscrowProgram->>-AliceUSLC: Credit $USDC (via T22)
+    EscrowProgram->>+EscrowProgram: CPI: Confidential Transfer (via T22)
+    EscrowProgram->>EscrowPDA: Debit $AUSD (via T22)
+    EscrowProgram->>-BobATA: Credit $AUSD (via T22)
+    EscrowProgram->>-EscrowProgram: Close Escrow
 ```
 
 ## Scaling Key Distribution
